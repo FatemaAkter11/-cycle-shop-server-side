@@ -24,6 +24,7 @@ async function run() {
         // console.log("Database connected successfully");
         const database = client.db("cycle_Shop");
         const productsCollection = database.collection("products");
+        const usersCollection = database.collection("users");
 
 
         // get all products
@@ -48,6 +49,24 @@ async function run() {
                 _id: ObjectId(req.params.id),
             });
             res.send(result);
+        });
+
+        // user post
+        app.post("/users", async (req, res) => {
+            const user = req.body;
+            const result = await usersCollection.insertOne(user);
+            // console.log(result);
+            res.json(result);
+        });
+
+        // Upsert user
+        app.put("/users", async (req, res) => {
+            const user = req.body;
+            const filter = { email: user.email };
+            const options = { upsert: true };
+            const updateDoc = { $set: user };
+            const result = await usersCollection.updateOne(filter, updateDoc, options);
+            res.json(result);
         });
 
     }
