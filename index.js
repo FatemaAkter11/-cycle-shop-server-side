@@ -7,6 +7,7 @@ const port = process.env.PORT || 5000;
 
 // middle war
 app.use(cors());
+app.use(express.json());
 
 // database connection
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.pjjkl.mongodb.net/myFirstDatabase?retryWrites=true&w=majority`;
@@ -18,7 +19,21 @@ const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology:
 async function run() {
     try {
         await client.connect();
-        console.log("Database connected successfully");
+        // console.log("Database connected successfully");
+        const database = client.db("cycle_Shop");
+        const productsCollection = database.collection("products");
+
+        // add products collection
+        app.post("/addProducts", async (req, res) => {
+            const addProducts = req.body;
+            // console.log(addProducts);
+            // res.json({ message: 'hello' })
+            const result = await productsCollection.insertOne(addProducts);
+            // console.log(result);
+            res.send(result);
+
+        });
+
     }
     finally {
         // await client.close();
