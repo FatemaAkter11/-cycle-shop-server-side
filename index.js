@@ -3,6 +3,8 @@ const app = express()
 const cors = require('cors');
 require("dotenv").config();
 const { MongoClient } = require('mongodb');
+const ObjectId = require("mongodb").ObjectId;
+
 const port = process.env.PORT || 5000;
 
 // middle war
@@ -22,6 +24,13 @@ async function run() {
         // console.log("Database connected successfully");
         const database = client.db("cycle_Shop");
         const productsCollection = database.collection("products");
+
+
+        // get all products
+        app.get("/allProducts", async (req, res) => {
+            const result = await productsCollection.find({}).toArray();
+            res.send(result);
+        });
 
         // add products collection
         app.post("/addProducts", async (req, res) => {
