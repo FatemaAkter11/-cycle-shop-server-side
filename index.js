@@ -1,11 +1,20 @@
 const express = require('express')
 const app = express()
 const cors = require('cors');
+const admin = require("firebase-admin");
 require("dotenv").config();
 const { MongoClient } = require('mongodb');
 const ObjectId = require("mongodb").ObjectId;
 
 const port = process.env.PORT || 5000;
+
+// jwt token server site
+const serviceAccount = require("./cycle-shop-firebase-adminsdk.json");
+
+admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount)
+});
+
 
 // middle war
 app.use(cors());
@@ -17,6 +26,18 @@ const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology:
 
 // console.log(uri);
 
+async function verifyToken(req, res, next) {
+    if (req.headers?.authorization?.startsWith("Bearer ")) {
+        const token = req.headers.authorization.split(" ")[1];
+
+        try {
+            const decodedUser = await admin.auth().verifyIdToken(token);
+            req.decodedEmail = decodedUser.email;
+        } catch { }
+    }
+    next();
+}
+
 //  mongodb connection
 async function run() {
     try {
@@ -24,6 +45,7 @@ async function run() {
         // console.log("Database connected successfully");
         const database = client.db("cycle_Shop");
         const productsCollection = database.collection("products");
+        const ordersCollection = database.collection("orders");
         const reviewCollection = database.collection("review");
         const usersCollection = database.collection("users");
 
@@ -49,6 +71,13 @@ async function run() {
             const result = await productsCollection.findOne({
                 _id: ObjectId(req.params.id),
             });
+            res.send(result);
+        });
+
+        // order to database
+        app.post("/addOrders", async (req, res) => {
+            const addOrders = req.body;
+            const result = await ordersCollection.insertOne(addOrders);
             res.send(result);
         });
 
@@ -105,7 +134,7 @@ async function run() {
         });
 
         // get users
-        app.get("/users/:email", async (req, res) => {
+        app.get("/users/:email", verifyToken, async (req, res) => {
             const email = req.params.email;
             const query = { email: email };
             const user = await usersCollection.findOne(query);
@@ -115,6 +144,7 @@ async function run() {
             }
             res.json({ admin: isAdmin });
         });
+
         // user post
         app.post("/users", async (req, res) => {
             const user = req.body;
@@ -134,24 +164,26 @@ async function run() {
         });
 
         // make admin
-        app.put("/users/admin", async (req, res) => {
+        app.put("/users/admin", verifyToken, async (req, res) => {
             const user = req.body;
-            // const requester = req.decodedEmail;
-            // if (requester) {
-            //   const requsterAccount = await usersCollection.findOne({
-            //     email: requester,
-            //   });
-            //   if (requsterAccount.role === "admin") {
-            const filter = { email: user.email };
-            const updateDoc = { $set: { role: "admin" } };
-            const result = await usersCollection.updateOne(filter, updateDoc);
-            res.json(result);
-            //   }
-            // } else {
-            //   res
-            //     .status(403)
-            //     .json({ message: "you do not have access to make admin" });
-            // }
+            // console.log('put', req.headers.authorization);
+            // console.log('put', req.decodedEmail);
+            const requester = req.decodedEmail;
+            if (requester) {
+                const requsterAccount = await usersCollection.findOne({
+                    email: requester,
+                });
+                if (requsterAccount.role === "admin") {
+                    const filter = { email: user.email };
+                    const updateDoc = { $set: { role: "admin" } };
+                    const result = await usersCollection.updateOne(filter, updateDoc);
+                    res.json(result);
+                }
+            } else {
+                res
+                    .status(403)
+                    .json({ message: "you do not have access to make admin" });
+            }
         });
 
 
