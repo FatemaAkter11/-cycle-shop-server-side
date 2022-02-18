@@ -24,6 +24,7 @@ async function run() {
         // console.log("Database connected successfully");
         const database = client.db("cycle_Shop");
         const productsCollection = database.collection("products");
+        const reviewCollection = database.collection("review");
         const usersCollection = database.collection("users");
 
 
@@ -51,6 +52,69 @@ async function run() {
             res.send(result);
         });
 
+        // Delete product
+        app.delete("/productItem/:id", async (req, res) => {
+            const result = await productsCollection.deleteOne({
+                _id: ObjectId(req.params.id),
+            });
+            res.json(result);
+            console.log(result);
+        });
+
+        // update Product
+        app.put("/update/:id", async (req, res) => {
+            const id = req.params.id;
+            const updateInfo = req.body;
+            const result = await productsCollection.updateOne(
+                { _id: ObjectId(id) },
+                {
+                    $set: {
+                        name: updateInfo.name,
+                        price: updateInfo.price,
+                        image: updateInfo.image,
+                        category: updateInfo.category,
+                        description: updateInfo.description,
+                    },
+                }
+            );
+            res.send(result);
+        });
+
+        // status Update
+        app.put("/statusUpdate/:id", async (req, res) => {
+            const filter = { _id: ObjectId(req.params.id) };
+            const result = await ordersCollection.updateOne(filter, {
+                $set: {
+                    status: req.body.status,
+                },
+            });
+            res.send(result);
+            console.log(result);
+        });
+
+        // review post
+        app.post("/addReview", async (req, res) => {
+            const result = await reviewCollection.insertOne(req.body);
+            res.send(result);
+        });
+
+        // get review items
+        app.get("/review", async (req, res) => {
+            const result = await reviewCollection.find({}).toArray();
+            res.send(result);
+        });
+
+        // get users
+        app.get("/users/:email", async (req, res) => {
+            const email = req.params.email;
+            const query = { email: email };
+            const user = await usersCollection.findOne(query);
+            let isAdmin = false;
+            if (user.role === "admin") {
+                isAdmin = true;
+            }
+            res.json({ admin: isAdmin });
+        });
         // user post
         app.post("/users", async (req, res) => {
             const user = req.body;
@@ -68,6 +132,28 @@ async function run() {
             const result = await usersCollection.updateOne(filter, updateDoc, options);
             res.json(result);
         });
+
+        // make admin
+        app.put("/users/admin", async (req, res) => {
+            const user = req.body;
+            // const requester = req.decodedEmail;
+            // if (requester) {
+            //   const requsterAccount = await usersCollection.findOne({
+            //     email: requester,
+            //   });
+            //   if (requsterAccount.role === "admin") {
+            const filter = { email: user.email };
+            const updateDoc = { $set: { role: "admin" } };
+            const result = await usersCollection.updateOne(filter, updateDoc);
+            res.json(result);
+            //   }
+            // } else {
+            //   res
+            //     .status(403)
+            //     .json({ message: "you do not have access to make admin" });
+            // }
+        });
+
 
     }
     finally {
